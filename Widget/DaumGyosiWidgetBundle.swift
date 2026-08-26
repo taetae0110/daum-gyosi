@@ -5,5 +5,6 @@ import WidgetKit
 struct DaumGyosiWidgetBundle: WidgetBundle {
     var body: some Widget {
         ClassActivityWidget()
+        TodayWidget()
     }
 }
