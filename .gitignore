@@ -1,0 +1,8 @@
+# xcodegen이 생성 — 커밋하지 않는다
+DaumGyosi.xcodeproj/
+build/
+*.ipa
+*.xcarchive
+xcuserdata/
+__pycache__/
+.DS_Store

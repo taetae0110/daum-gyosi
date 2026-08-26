@@ -1,0 +1,53 @@
+# XcodeGen 스펙 — .xcodeproj는 CI에서 `xcodegen generate`로 생성한다 (커밋하지 않음)
+name: DaumGyosi
+options:
+  deploymentTarget:
+    iOS: "16.2"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # TestFlight 단계에서 애플 개발자 팀 ID로 교체 (README 참고)
+    DEVELOPMENT_TEAM: ""
+    # 배포 서명은 타겟별 수동 지정 — build.yml은 CODE_SIGNING_ALLOWED=NO라 영향 없음
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "Apple Distribution"
+targets:
+  DaumGyosi:
+    type: application
+    platform: iOS
+    sources: [App, Shared]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.daumgyosi.app
+        PROVISIONING_PROFILE_SPECIFIER: DaumGyosi AppStore
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: 다음교시
+        NSSupportsLiveActivities: true
+        # open.neis.go.kr에서 발급받은 키를 여기 넣는다 (없으면 응답 5행 잘림)
+        NEIS_KEY: ""
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        ITSAppUsesNonExemptEncryption: false
+    dependencies:
+      - target: DaumGyosiWidget
+        embed: true
+  DaumGyosiWidget:
+    type: app-extension
+    platform: iOS
+    sources: [Widget, Shared]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.daumgyosi.app.widgets
+        PROVISIONING_PROFILE_SPECIFIER: DaumGyosi Widget AppStore
+        SKIP_INSTALL: true
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: 다음교시
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension

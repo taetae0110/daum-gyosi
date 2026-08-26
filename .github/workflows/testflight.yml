@@ -1,0 +1,62 @@
+# TestFlight 업로드 — 밀스톤 2 (애플 개발자 계정 + 인증서 secrets 등록 후 수동 실행)
+# 필요한 secrets: BUILD_CERTIFICATE_BASE64, P12_PASSWORD,
+#   PROFILE_APP_BASE64, PROFILE_WIDGET_BASE64,
+#   ASC_ISSUER_ID, ASC_KEY_ID, ASC_KEY_P8   (App Store Connect API 키)
+#   NEIS_KEY (나이스 인증키 — 저장소에 커밋하지 않고 빌드 때 주입)
+# 사전 작업: project.yml의 DEVELOPMENT_TEAM에 팀 ID 기입 (README 참고)
+name: testflight
+on: [workflow_dispatch]
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.P12_PASSWORD }}
+      - name: Install provisioning profiles
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "${{ secrets.PROFILE_APP_BASE64 }}" | base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/app.mobileprovision
+          echo "${{ secrets.PROFILE_WIDGET_BASE64 }}" | base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/widget.mobileprovision
+      - name: Inject NEIS key
+        run: |
+          sed -i '' 's/NEIS_KEY: ""/NEIS_KEY: "${{ secrets.NEIS_KEY }}"/' project.yml
+      - name: Generate project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Archive
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project DaumGyosi.xcodeproj \
+            -scheme DaumGyosi \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/DaumGyosi.xcarchive
+      - name: Export IPA
+        run: |
+          cat > build/export.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>provisioningProfiles</key><dict>
+              <key>com.daumgyosi.app</key><string>DaumGyosi AppStore</string>
+              <key>com.daumgyosi.app.widgets</key><string>DaumGyosi Widget AppStore</string>
+            </dict>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath build/DaumGyosi.xcarchive \
+            -exportPath build/ipa \
+            -exportOptionsPlist build/export.plist
+      - name: Upload to TestFlight
+        uses: apple-actions/upload-testflight-build@v3
+        with:
+          app-path: build/ipa/DaumGyosi.ipa
+          issuer-id: ${{ secrets.ASC_ISSUER_ID }}
+          api-key-id: ${{ secrets.ASC_KEY_ID }}
+          api-private-key: ${{ secrets.ASC_KEY_P8 }}
