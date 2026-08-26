@@ -1,0 +1,35 @@
+# 사이드로딩용 서명 없는 IPA 생성 — $99 계정 없이 본인 폰에 설치하는 경로 (README 밀스톤 1.5)
+# Actions에서 수동 실행 → 아티팩트 DaumGyosi-unsigned 다운로드 → Sideloadly로 설치 (7일마다 재서명)
+name: sideload
+on: [workflow_dispatch]
+jobs:
+  ipa:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inject NEIS key
+        run: |
+          sed -i '' 's/NEIS_KEY: ""/NEIS_KEY: "${{ secrets.NEIS_KEY }}"/' project.yml
+      - name: Generate project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Build unsigned device app
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project DaumGyosi.xcodeproj \
+            -scheme DaumGyosi \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+      - name: Package IPA
+        run: |
+          mkdir -p build/Payload
+          cp -R build/dd/Build/Products/Release-iphoneos/DaumGyosi.app build/Payload/
+          cd build && zip -qry DaumGyosi-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DaumGyosi-unsigned
+          path: build/DaumGyosi-unsigned.ipa
