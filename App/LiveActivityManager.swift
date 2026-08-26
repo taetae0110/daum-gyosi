@@ -66,6 +66,48 @@ final class LiveActivityManager {
         return "다음 · " + s.label
     }
 
+    // 진단용 테스트: 가짜 세션을 직접 요청하고, 실패 지점을 사람이 읽을 수 있게 돌려준다
+    func startTest(schoolName: String, mealLine: String?) async -> String {
+        var lines: [String] = []
+
+        if let url = Bundle.main.builtInPlugInsURL,
+           let items = try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil),
+           items.contains(where: { $0.pathExtension == "appex" }) {
+            lines.append("위젯 확장: 있음 ✓")
+        } else {
+            lines.append("위젯 확장: 없음 ✗ — 설치 도구가 확장을 빼고 서명함")
+        }
+
+        lines.append(ActivityAuthorizationInfo().areActivitiesEnabled
+                     ? "Live Activity 허용: ON ✓"
+                     : "Live Activity 허용: OFF ✗ — 설정 > 다음교시에서 켜기")
+
+        let now = Date()
+        let state = ClassActivityAttributes.ContentState(
+            label: "3교시 수학",
+            endDate: now.addingTimeInterval(900),
+            nextLabel: "다음 · 영어",
+            isBreak: false,
+            mealLine: mealLine
+        )
+        do {
+            for activity in Activity<ClassActivityAttributes>.activities {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
+            _ = try Activity.request(
+                attributes: ClassActivityAttributes(schoolName: schoolName),
+                content: ActivityContent(state: state, staleDate: nil),
+                pushType: nil
+            )
+            lines.append("시스템 요청: 성공 ✓")
+            lines.append("→ 홈 화면으로 나가면 아일랜드에 표시됩니다")
+        } catch {
+            lines.append("시스템 요청: 실패 ✗")
+            lines.append(error.localizedDescription)
+        }
+        return lines.joined(separator: "\n")
+    }
+
     func endAll() {
         Task {
             for activity in Activity<ClassActivityAttributes>.activities {

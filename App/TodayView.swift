@@ -11,6 +11,7 @@ struct TodayView: View {
     }
 
     @State private var state: LoadState = .loading
+    @State private var testReport: String?
     @State private var showSettingsDialog = false
     @State private var tomorrowExpanded = false
     @State private var tomorrowLoading = false
@@ -68,7 +69,11 @@ struct TodayView: View {
                 }
                 .confirmationDialog("설정", isPresented: $showSettingsDialog, titleVisibility: .visible) {
                     Button("아일랜드 테스트 (15분)") {
-                        startIslandTest(settings: settings)
+                        Task {
+                            testReport = await LiveActivityManager.shared.startTest(
+                                schoolName: settings.school.name,
+                                mealLine: "쌀밥 · 불고기 · 배추김치")
+                        }
                     }
                     Button("학교 다시 설정", role: .destructive) {
                         LiveActivityManager.shared.endAll()  // 이전 학교의 아일랜드가 남지 않게
@@ -77,6 +82,14 @@ struct TodayView: View {
                     Button("취소", role: .cancel) {}
                 } message: {
                     Text("학교·학년·반과 교시 시간을 처음부터 다시 설정합니다.")
+                }
+                .alert("아일랜드 테스트", isPresented: Binding(
+                    get: { testReport != nil },
+                    set: { if !$0 { testReport = nil } }
+                )) {
+                    Button("확인") { testReport = nil }
+                } message: {
+                    Text(testReport ?? "")
                 }
             }
             .task { await load(settings: settings) }
@@ -341,22 +354,6 @@ struct TodayView: View {
         } else {
             tomorrowEntries = []
         }
-    }
-
-    // 심야·주말에도 다이나믹 아일랜드를 확인할 수 있는 가짜 세션.
-    // 앱을 다시 열면 실제 시간표 기준 sync가 돌면서 자동 정리된다.
-    private func startIslandTest(settings: AppSettings) {
-        let now = Date()
-        let day = DaySessions(sessions: [
-            DaySessions.Session(label: "3교시 수학", start: now.addingTimeInterval(-300),
-                                end: now.addingTimeInterval(900), isBreak: false, period: 3),
-            DaySessions.Session(label: "쉬는시간", start: now.addingTimeInterval(900),
-                                end: now.addingTimeInterval(1500), isBreak: true, period: nil),
-            DaySessions.Session(label: "4교시 영어", start: now.addingTimeInterval(1500),
-                                end: now.addingTimeInterval(4500), isBreak: false, period: 4),
-        ])
-        LiveActivityManager.shared.sync(day: day, schoolName: settings.school.name,
-                                        mealLine: "쌀밥 · 불고기 · 배추김치")
     }
 
     private func mealLine(from meals: [Meal]) -> String? {
