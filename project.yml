@@ -26,7 +26,8 @@ targets:
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: 다음교시
+        # AltStore 무료 서명은 App ID 이름에 ASCII만 허용 — TestFlight 전환 때 한글(다음교시)로 복원
+        CFBundleDisplayName: DaumGyosi
         NSSupportsLiveActivities: true
         # open.neis.go.kr에서 발급받은 키를 여기 넣는다 (없으면 응답 5행 잘림)
         NEIS_KEY: ""
@@ -48,6 +49,6 @@ targets:
     info:
       path: Widget/Info.plist
       properties:
-        CFBundleDisplayName: 다음교시
+        CFBundleDisplayName: DaumGyosiWidget
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
